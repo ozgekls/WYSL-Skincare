@@ -1,0 +1,72 @@
+  BULUNAMADI: isopropyl myristate
+  BULUNAMADI: isopropyl isostearate
+  BULUNAMADI: coconut oil
+  BULUNAMADI: cocoa butter
+  BULUNAMADI: wheat germ oil
+  BULUNAMADI: flaxseed oil
+  BULUNAMADI: cottonseed oil
+  BULUNAMADI: olive oil
+  BULUNAMADI: avocado oil
+  BULUNAMADI: sweet almond oil
+  BULUNAMADI: argan oil
+  BULUNAMADI: marula oil
+  BULUNAMADI: hemp seed oil
+  BULUNAMADI: sunflower oil
+  BULUNAMADI: safflower oil
+  BULUNAMADI: grapeseed oil
+  BULUNAMADI: sea buckthorn oil
+  BULUNAMADI: petroleum jelly
+  BULUNAMADI: castor oil
+  BULUNAMADI: mango butter
+  BULUNAMADI: lanolin
+  BULUNAMADI: beeswax
+  BULUNAMADI: candelilla wax
+  BULUNAMADI: amodimethicone
+  BULUNAMADI: lauryl alcohol
+  BULUNAMADI: polyethylene glycol
+  BULUNAMADI: sodium laureth sulfate
+  BULUNAMADI: cocamidopropyl betaine
+  BULUNAMADI: sodium palmitate
+  BULUNAMADI: tretinoin
+  BULUNAMADI: vitamin c
+  BULUNAMADI: kojic acid
+  BULUNAMADI: azelaic acid
+  BULUNAMADI: ceramide
+  BULUNAMADI: alpha-arbutin
+  BULUNAMADI: arbutin
+  BULUNAMADI: tranexamic acid
+  BULUNAMADI: bakuchiol
+  BULUNAMADI: resveratrol
+  BULUNAMADI: benzoyl peroxide
+  BULUNAMADI: epidermal growth factor
+  BULUNAMADI: peptide
+  BULUNAMADI: acetyl hexapeptide-3
+  BULUNAMADI: parfum
+  BULUNAMADI: ethanol
+  BULUNAMADI: isopropyl alcohol
+  BULUNAMADI: aqua
+  BULUNAMADI: hydroxypropyl methylcellulose
+  BULUNAMADI: zinc stearate
+  BULUNAMADI: aloe vera
+  BULUNAMADI: green tea extract
+  BULUNAMADI: chamomile extract
+  BULUNAMADI: licorice root extract
+  BULUNAMADI: turmeric extract
+  BULUNAMADI: rosemary extract
+  BULUNAMADI: lavender extract
+  BULUNAMADI: tea tree oil
+  BULUNAMADI: witch hazel
+  BULUNAMADI: sea kelp extract
+  BULUNAMADI: mushroom extract
+  BULUNAMADI: noni extract
+  BULUNAMADI: pomegranate extract
+  BULUNAMADI: oat extract
+  BULUNAMADI: colloidal oatmeal
+  BULUNAMADI: squalene
+
+--- SONUC ---
+Guncellenen satir : 0
+Dict'te bulunamayan: 65
+DB'de dolu olan   : 102
+DB'de hala NULL   : 1624
+Kapsama orani     : 5.9%

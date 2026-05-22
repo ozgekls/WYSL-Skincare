@@ -1,0 +1,230 @@
+Dosya yolu: C:\Users\ozget\Desktop\wysl_skincare\cosmetics.csv
+Encoding: utf-8
+Toplam satir: 1472
+Islem basladi...
+  0. satir tamamlandi (1 basarili, 0 hatali)...
+  [4] SATIR HATASI: value too long for type character varying(100)
+
+  [6] SATIR HATASI: value too long for type character varying(100)
+
+  [11] SATIR HATASI: value too long for type character varying(100)
+
+  [15] SATIR HATASI: value too long for type character varying(100)
+
+  [34] SATIR HATASI: value too long for type character varying(100)
+
+  [48] SATIR HATASI: value too long for type character varying(100)
+
+  [70] SATIR HATASI: value too long for type character varying(100)
+
+  [87] SATIR HATASI: value too long for type character varying(100)
+
+  [91] SATIR HATASI: value too long for type character varying(100)
+
+  100. satir tamamlandi (92 basarili, 9 hatali)...
+  [142] SATIR HATASI: value too long for type character varying(100)
+
+  [144] SATIR HATASI: value too long for type character varying(100)
+
+  [159] SATIR HATASI: value too long for type character varying(100)
+
+  [161] SATIR HATASI: value too long for type character varying(100)
+
+  [177] SATIR HATASI: value too long for type character varying(100)
+
+  [188] SATIR HATASI: value too long for type character varying(100)
+
+  200. satir tamamlandi (186 basarili, 15 hatali)...
+  [213] SATIR HATASI: value too long for type character varying(100)
+
+  [231] SATIR HATASI: value too long for type character varying(100)
+
+  [251] SATIR HATASI: value too long for type character varying(100)
+
+  [260] SATIR HATASI: value too long for type character varying(100)
+
+  [272] SATIR HATASI: value too long for type character varying(100)
+
+  300. satir tamamlandi (281 basarili, 20 hatali)...
+  [321] SATIR HATASI: value too long for type character varying(100)
+
+  [334] SATIR HATASI: value too long for type character varying(100)
+
+  [345] SATIR HATASI: value too long for type character varying(100)
+
+  [366] SATIR HATASI: value too long for type character varying(100)
+
+  [395] SATIR HATASI: value too long for type character varying(100)
+
+  400. satir tamamlandi (376 basarili, 25 hatali)...
+  [449] SATIR HATASI: value too long for type character varying(100)
+
+  [453] SATIR HATASI: value too long for type character varying(100)
+
+  [458] SATIR HATASI: value too long for type character varying(100)
+
+  [466] SATIR HATASI: value too long for type character varying(100)
+
+  [469] SATIR HATASI: value too long for type character varying(100)
+
+  [499] SATIR HATASI: value too long for type character varying(100)
+
+  500. satir tamamlandi (470 basarili, 31 hatali)...
+  [512] SATIR HATASI: value too long for type character varying(100)
+
+  [544] SATIR HATASI: value too long for type character varying(100)
+
+  [584] SATIR HATASI: value too long for type character varying(100)
+
+  [588] SATIR HATASI: value too long for type character varying(100)
+
+  [591] SATIR HATASI: value too long for type character varying(100)
+
+  [599] SATIR HATASI: value too long for type character varying(100)
+
+  600. satir tamamlandi (564 basarili, 37 hatali)...
+  [604] SATIR HATASI: value too long for type character varying(100)
+
+  [649] SATIR HATASI: value too long for type character varying(100)
+
+  [653] SATIR HATASI: value too long for type character varying(100)
+
+  [680] SATIR HATASI: value too long for type character varying(100)
+
+  700. satir tamamlandi (660 basarili, 41 hatali)...
+  [703] SATIR HATASI: value too long for type character varying(100)
+
+  [709] SATIR HATASI: value too long for type character varying(100)
+
+  [713] SATIR HATASI: value too long for type character varying(100)
+
+  [719] SATIR HATASI: value too long for type character varying(100)
+
+  [747] SATIR HATASI: value too long for type character varying(100)
+
+  [749] SATIR HATASI: value too long for type character varying(100)
+
+  [758] SATIR HATASI: value too long for type character varying(100)
+
+  [768] SATIR HATASI: value too long for type character varying(100)
+
+  [786] SATIR HATASI: value too long for type character varying(100)
+
+  [787] SATIR HATASI: value too long for type character varying(100)
+
+  [797] SATIR HATASI: value too long for type character varying(100)
+
+  800. satir tamamlandi (749 basarili, 52 hatali)...
+  [837] SATIR HATASI: value too long for type character varying(100)
+
+  [839] SATIR HATASI: value too long for type character varying(100)
+
+  [843] SATIR HATASI: value too long for type character varying(100)
+
+  [844] SATIR HATASI: value too long for type character varying(100)
+
+  [862] SATIR HATASI: value too long for type character varying(100)
+
+  [864] SATIR HATASI: value too long for type character varying(100)
+
+  [868] SATIR HATASI: value too long for type character varying(100)
+
+  [880] SATIR HATASI: value too long for type character varying(100)
+
+  [897] SATIR HATASI: value too long for type character varying(100)
+
+  [898] SATIR HATASI: value too long for type character varying(100)
+
+  900. satir tamamlandi (839 basarili, 62 hatali)...
+  [902] SATIR HATASI: value too long for type character varying(100)
+
+  [951] SATIR HATASI: value too long for type character varying(100)
+
+  [964] SATIR HATASI: value too long for type character varying(100)
+
+  [965] SATIR HATASI: value too long for type character varying(100)
+
+  [970] SATIR HATASI: value too long for type character varying(100)
+
+  [971] SATIR HATASI: value too long for type character varying(100)
+
+  [979] SATIR HATASI: value too long for type character varying(100)
+
+  [1000] SATIR HATASI: value too long for type character varying(100)
+
+  [1015] SATIR HATASI: value too long for type character varying(100)
+
+  [1017] SATIR HATASI: value too long for type character varying(100)
+
+  [1024] SATIR HATASI: value too long for type character varying(100)
+
+  [1030] SATIR HATASI: value too long for type character varying(100)
+
+  [1037] SATIR HATASI: value too long for type character varying(100)
+
+  [1038] SATIR HATASI: value too long for type character varying(100)
+
+  [1062] SATIR HATASI: value too long for type character varying(100)
+
+  [1067] SATIR HATASI: value too long for type character varying(100)
+
+  [1071] SATIR HATASI: value too long for type character varying(100)
+
+  [1074] SATIR HATASI: value too long for type character varying(100)
+
+  [1081] SATIR HATASI: value too long for type character varying(100)
+
+  [1086] SATIR HATASI: value too long for type character varying(100)
+
+  [1089] SATIR HATASI: value too long for type character varying(100)
+
+  [1090] SATIR HATASI: value too long for type character varying(100)
+
+  [1098] SATIR HATASI: value too long for type character varying(100)
+
+  1100. satir tamamlandi (1016 basarili, 85 hatali)...
+  [1103] SATIR HATASI: value too long for type character varying(100)
+
+  [1148] SATIR HATASI: value too long for type character varying(100)
+
+  [1163] SATIR HATASI: value too long for type character varying(100)
+
+  [1183] SATIR HATASI: value too long for type character varying(100)
+
+  1200. satir tamamlandi (1112 basarili, 89 hatali)...
+  [1235] SATIR HATASI: value too long for type character varying(100)
+
+  [1246] SATIR HATASI: value too long for type character varying(100)
+
+  [1250] SATIR HATASI: value too long for type character varying(100)
+
+  [1260] SATIR HATASI: value too long for type character varying(100)
+
+  [1267] SATIR HATASI: value too long for type character varying(100)
+
+  [1275] SATIR HATASI: value too long for type character varying(100)
+
+  1300. satir tamamlandi (1206 basarili, 95 hatali)...
+  [1338] SATIR HATASI: value too long for type character varying(100)
+
+  [1341] SATIR HATASI: value too long for type character varying(100)
+
+  [1344] SATIR HATASI: value too long for type character varying(100)
+
+  [1345] SATIR HATASI: value too long for type character varying(100)
+
+  [1364] SATIR HATASI: value too long for type character varying(100)
+
+  1400. satir tamamlandi (1301 basarili, 100 hatali)...
+  [1401] SATIR HATASI: value too long for type character varying(100)
+
+  [1404] SATIR HATASI: value too long for type character varying(100)
+
+  [1427] SATIR HATASI: value too long for type character varying(100)
+
+  [1464] SATIR HATASI: value too long for type character varying(100)
+
+  [1465] SATIR HATASI: value too long for type character varying(100)
+
+
+TAMAMLANDI: 1367 basarili, 105 hatali.
