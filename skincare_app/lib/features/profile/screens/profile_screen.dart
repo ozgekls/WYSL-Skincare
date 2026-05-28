@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:skincare_app/data/services/api_service.dart';
 import 'package:skincare_app/data/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skincare_app/features/auth/screens/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final int? userId;
@@ -684,8 +686,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icons.logout,
                             color: Colors.redAccent,
                           ),
-                          onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/login');
+                          onPressed: () async {
+                            // Beni Hatırla bilgilerini temizle
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.clear();
+
+                            if (context.mounted) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            }
                           },
                         ),
                       ],

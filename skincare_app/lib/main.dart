@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skincare_app/data/services/api_service.dart';
 import 'package:skincare_app/features/auth/screens/login_screen.dart';
 import 'core/constants/colors.dart';
 import 'features/home/screens/home_screen.dart';
@@ -20,7 +22,71 @@ class SkincareApp extends StatelessWidget {
         scaffoldBackgroundColor: AppColors.background,
         fontFamily: 'Georgia',
       ),
-      home: const LoginScreen(),
+      home: const _AuthGate(),
+    );
+  }
+}
+
+// Otomatik giriş kapısı
+class _AuthGate extends StatefulWidget {
+  const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAutoLogin();
+  }
+
+  Future<void> _checkAutoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final remember = prefs.getBool('remember_me') ?? false;
+    final email = prefs.getString('saved_email') ?? '';
+    final password = prefs.getString('saved_password') ?? '';
+
+    if (!remember || email.isEmpty) {
+      // Kayıtlı oturum yok, login ekranına git
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
+      return;
+    }
+
+    // Kaydedilmiş bilgilerle otomatik giriş dene
+    try {
+      final result = await ApiService.login(email, password);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainNavigation(userId: result['user_id']),
+          ),
+        );
+      }
+    } catch (_) {
+      // Otomatik giriş başarısız, bilgileri temizle ve login'e git
+      await prefs.clear();
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Kontrol yapılırken yükleniyor ekranı
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
     );
   }
 }
