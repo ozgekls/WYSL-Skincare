@@ -182,7 +182,7 @@ def get_user_routine(user_id: int, db: Session = Depends(get_db)):
 @router.get("/{user_id}/past-products")
 def get_past_products(user_id: int, db: Session = Depends(get_db)):
     query = text("""
-        SELECT id, product_name, ingredients_text, is_favorite, analysis_date
+        SELECT id, routine_type, product_name, ingredients_text, is_favorite, analysis_date
         FROM user_products 
         WHERE user_id = :u_id
         ORDER BY analysis_date DESC
@@ -191,6 +191,7 @@ def get_past_products(user_id: int, db: Session = Depends(get_db)):
     return [
         {
             "id": row.id,
+            "routine_type": row.routine_type,
             "product_name": row.product_name,
             "ingredients_text": row.ingredients_text,
             "is_favorite": row.is_favorite,
