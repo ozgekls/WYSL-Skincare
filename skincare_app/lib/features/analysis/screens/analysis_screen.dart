@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skincare_app/data/services/api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 class AnalysisScreen extends StatefulWidget {
   final int? userId;
@@ -60,13 +62,36 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     }
   }
 
-  // Fotoğraf seçimi simüle ediyoruz — gerçek implementasyonda image_picker kullanılacak
   void _pickImage() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _buildImagePickerSheet(),
     );
+  }
+
+  Future<void> _pickAndScanImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile == null) return;
+
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final inputImage = InputImage.fromFilePath(pickedFile.path);
+    final recognized = await textRecognizer.processImage(inputImage);
+    await textRecognizer.close();
+
+    final scannedText = recognized.text;
+    if (scannedText.isNotEmpty && mounted) {
+      // Taranan metni ingredient alanına doldur
+      _ingredientsController.text = scannedText;
+      _showManualEntryDialog(); // Kullanıcı görsün ve düzeltsin
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Metin okunamadı, manuel girin.')),
+        );
+      }
+    }
   }
 
   Widget _buildImagePickerSheet() {
@@ -117,8 +142,9 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                   const Color(0xFFE8F5E9),
                   const Color(0xFF4CAF50),
                   () {
+                    // BURASI GÜNCELLENDİ: Kamera seçeneği
                     Navigator.pop(context);
-                    _showManualEntryDialog();
+                    _pickAndScanImage(ImageSource.camera);
                   },
                 ),
               ),
@@ -130,8 +156,9 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                   const Color(0xFFE3F2FD),
                   const Color(0xFF2196F3),
                   () {
+                    // BURASI GÜNCELLENDİ: Galeri seçeneği
                     Navigator.pop(context);
-                    _showManualEntryDialog();
+                    _pickAndScanImage(ImageSource.gallery);
                   },
                 ),
               ),
@@ -152,6 +179,7 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: () {
+                // Manuel giriş aynı kaldı
                 Navigator.pop(context);
                 _showManualEntryDialog();
               },

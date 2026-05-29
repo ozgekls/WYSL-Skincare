@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skincare_app/data/services/api_service.dart';
 import 'package:skincare_app/features/auth/screens/login_screen.dart';
+import 'package:skincare_app/features/profile/screens/profile_screen.dart';
 import 'core/constants/colors.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/analysis/screens/analysis_screen.dart';
-import 'features/profile/screens/profile_screen.dart';
 
 void main() {
   runApp(const SkincareApp());
@@ -27,7 +27,6 @@ class SkincareApp extends StatelessWidget {
   }
 }
 
-// Otomatik giriş kapısı
 class _AuthGate extends StatefulWidget {
   const _AuthGate();
 
@@ -49,7 +48,6 @@ class _AuthGateState extends State<_AuthGate> {
     final password = prefs.getString('saved_password') ?? '';
 
     if (!remember || email.isEmpty) {
-      // Kayıtlı oturum yok, login ekranına git
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -59,7 +57,6 @@ class _AuthGateState extends State<_AuthGate> {
       return;
     }
 
-    // Kaydedilmiş bilgilerle otomatik giriş dene
     try {
       final result = await ApiService.login(email, password);
       if (mounted) {
@@ -71,7 +68,6 @@ class _AuthGateState extends State<_AuthGate> {
         );
       }
     } catch (_) {
-      // Otomatik giriş başarısız, bilgileri temizle ve login'e git
       await prefs.clear();
       if (mounted) {
         Navigator.pushReplacement(
@@ -84,7 +80,6 @@ class _AuthGateState extends State<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    // Kontrol yapılırken yükleniyor ekranı
     return const Scaffold(
       body: Center(child: CircularProgressIndicator(color: Color(0xFF4CAF50))),
     );
@@ -92,7 +87,7 @@ class _AuthGateState extends State<_AuthGate> {
 }
 
 class MainNavigation extends StatefulWidget {
-  final int? userId; // Girişten gelen ID'yi burada karşılıyoruz
+  final int? userId;
   const MainNavigation({super.key, this.userId});
 
   @override
@@ -100,16 +95,24 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int _selectedIndex = 0; // Uygulama Ana Sayfa (0) ile başlasın
+  int _selectedIndex = 0;
+  final GlobalKey<ProfileScreenState> _profileKey =
+      GlobalKey<ProfileScreenState>();
+
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomeScreen(userId: widget.userId),
+      AnalysisScreen(userId: widget.userId),
+      ProfileScreen(key: _profileKey, userId: widget.userId),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _pages = [
-      HomeScreen(userId: widget.userId), // 0. Sekme
-      AnalysisScreen(userId: widget.userId), // 1. Sekme
-      ProfileScreen(userId: widget.userId), // 2. Sekme
-    ];
-
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: Container(
@@ -133,7 +136,12 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isSelected = _selectedIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        setState(() => _selectedIndex = index);
+        if (index == 2) {
+          _profileKey.currentState?.loadPastProducts();
+        }
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

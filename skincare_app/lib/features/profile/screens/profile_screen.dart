@@ -3,6 +3,7 @@ import 'package:skincare_app/data/services/api_service.dart';
 import 'package:skincare_app/data/models/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skincare_app/features/auth/screens/login_screen.dart';
+import 'package:skincare_app/features/auth/screens/skin_test_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final int? userId;
@@ -10,13 +11,12 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.userId});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ProfileScreenState createState() => ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class ProfileScreenState extends State<ProfileScreen> {
   Future<UserModel>? _userProfile;
 
-  // Artık backend'den geliyor
   List<Map<String, dynamic>> _pastProducts = [];
   bool _isLoadingProducts = false;
 
@@ -25,12 +25,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     if (widget.userId != null) {
       _userProfile = ApiService.getUserProfile(widget.userId!);
-      _loadPastProducts();
+      loadPastProducts();
     }
   }
 
-  // --- VERİTABANINDAN GEÇMİŞ ÜRÜNLERİ YÜKLE ---
-  Future<void> _loadPastProducts() async {
+  Future<void> loadPastProducts() async {
     if (widget.userId == null) return;
     setState(() => _isLoadingProducts = true);
     try {
@@ -47,9 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // --- ANALİZ SONUÇLARINI GÖSTER ---
   void _showAnalysisDialog(String productName, String ingredientsText) async {
-    // Yükleniyor dialog'u aç
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -77,9 +74,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // Yükleniyor'u kapat
+      Navigator.pop(context);
 
-      // Analiz sonuçlarını göster
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -89,7 +85,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Başlık
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
@@ -126,8 +121,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-
-              // İçerik listesi
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.5,
@@ -139,11 +132,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   itemBuilder: (context, index) {
                     final item = analysis[index];
                     final status = item['status'] ?? 'unknown';
-
                     Color statusColor;
                     IconData statusIcon;
                     String statusLabel;
-
                     switch (status) {
                       case 'danger':
                         statusColor = Colors.red;
@@ -165,7 +156,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         statusIcon = Icons.help_outline;
                         statusLabel = 'Bilinmiyor';
                     }
-
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(10),
@@ -200,22 +190,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     height: 1.3,
                                   ),
                                 ),
-                                if (item['comedogenic_score'] != null) ...[
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      _scoreChip(
-                                        'Comedogenic',
-                                        item['comedogenic_score'],
-                                      ),
-                                      const SizedBox(width: 6),
-                                      _scoreChip(
-                                        'Irritasyon',
-                                        item['irritation_score'],
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ],
                             ),
                           ),
@@ -243,8 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
               ),
-
-              // Özet sayılar
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: _buildAnalysisSummary(analysis),
@@ -262,26 +234,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Widget _scoreChip(String label, dynamic score) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '$label: $score/5',
-        style: const TextStyle(fontSize: 9, color: Colors.grey),
-      ),
-    );
-  }
-
   Widget _buildAnalysisSummary(List<dynamic> analysis) {
     int dangerCount = analysis.where((i) => i['status'] == 'danger').length;
     int warningCount = analysis.where((i) => i['status'] == 'warning').length;
     int safeCount = analysis.where((i) => i['status'] == 'safe').length;
     int unknownCount = analysis.where((i) => i['status'] == 'unknown').length;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
@@ -309,7 +266,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- GEÇMİŞ ÜRÜN EKLEME PENCERESİ ---
   void _showAddPastProductDialog() {
     final nameController = TextEditingController();
     final ingredientsController = TextEditingController();
@@ -437,21 +393,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 onPressed: () async {
                   if (nameController.text.isEmpty) return;
-
                   try {
-                    // Backend'e kaydet
                     await ApiService.addProductToRoutine(
                       widget.userId!,
                       isLiked ? 'liked' : 'disliked',
                       nameController.text,
                       ingredientsController.text,
                     );
-
                     if (context.mounted) Navigator.pop(context);
-
-                    // Listeyi yenile
-                    await _loadPastProducts();
-
+                    await loadPastProducts();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Ürün kaydedildi!")),
@@ -477,12 +427,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- GEÇMİŞ ÜRÜN DÜZENLEME PENCERESİ ---
   void _showEditPastProductDialog(int index, Map<String, dynamic> product) {
     final nameController = TextEditingController(
       text: product['product_name'] ?? product['name'] ?? '',
     );
-    bool isLiked = product['routine_type'] == 'liked';
+    bool isLiked =
+        product['routine_type'] == 'liked' ||
+        product['routine_type'] == 'Sabah Rutini' ||
+        product['routine_type'] == 'Akşam Rutini';
 
     showDialog(
       context: context,
@@ -604,7 +556,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       isLiked ? 'liked' : 'disliked',
                     );
                     if (context.mounted) Navigator.pop(context);
-                    await _loadPastProducts(); // listeyi yenile
+                    await loadPastProducts();
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(
@@ -625,6 +577,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Rutin tipini Türkçe etikete çevir
+  String _routineLabel(String? routineType) {
+    switch (routineType) {
+      case 'liked':
+        return '✅ Anlaştı';
+      case 'disliked':
+        return '❌ Anlaşamadı';
+      case 'Sabah Rutini':
+        return '☀️ Sabah';
+      case 'Akşam Rutini':
+        return '🌙 Akşam';
+      case 'analyzed':
+        return '🔬 Analiz';
+      default:
+        return routineType ?? '';
+    }
+  }
+
+  Color _routineColor(String? routineType) {
+    switch (routineType) {
+      case 'liked':
+      case 'Sabah Rutini':
+      case 'Akşam Rutini':
+        return Colors.green;
+      case 'disliked':
+        return Colors.red;
+      case 'analyzed':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_userProfile == null) {
@@ -642,7 +627,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return Center(child: Text('Hata: ${snapshot.error}'));
             } else if (snapshot.hasData) {
               final user = snapshot.data!;
-
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -697,10 +681,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.redAccent,
                           ),
                           onPressed: () async {
-                            // Beni Hatırla bilgilerini temizle
                             final prefs = await SharedPreferences.getInstance();
                             await prefs.clear();
-
                             if (context.mounted) {
                               Navigator.pushAndRemoveUntil(
                                 context,
@@ -736,9 +718,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Test ekranı açılıyor..."),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SkinTestScreen(userId: widget.userId!),
                             ),
                           );
                         },
@@ -773,15 +757,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    // Geçmiş Ürünler Listesi
                     SizedBox(
-                      height: 160,
+                      height: 180,
                       child: _isLoadingProducts
                           ? const Center(child: CircularProgressIndicator())
                           : _pastProducts.isEmpty
                           ? const Center(
                               child: Text(
-                                "Henüz geçmiş ürün eklemediniz.",
+                                "Henüz ürün eklenmedi.",
                                 style: TextStyle(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic,
@@ -795,17 +778,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 final product = _pastProducts[index];
                                 final routineType =
                                     product['routine_type'] ?? '';
-                                final isLiked =
-                                    routineType == 'liked' ||
-                                    routineType == 'Sabah Rutini' ||
-                                    routineType == 'Akşam Rutini';
-                                final color = isLiked
-                                    ? Colors.green
-                                    : Colors.orange;
                                 final productName =
                                     product['product_name'] ?? 'İsimsiz';
                                 final ingredientsText =
                                     product['ingredients_text'] ?? '';
+                                final color = _routineColor(routineType);
+                                final label = _routineLabel(routineType);
 
                                 return Container(
                                   width: 150,
@@ -834,17 +812,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Container(
-                                            padding: const EdgeInsets.all(6),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 3,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: color.withOpacity(0.1),
-                                              shape: BoxShape.circle,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                             ),
-                                            child: Icon(
-                                              isLiked
-                                                  ? Icons.thumb_up_outlined
-                                                  : Icons.thumb_down_outlined,
-                                              color: color,
-                                              size: 16,
+                                            child: Text(
+                                              label,
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: color,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                           SizedBox(
@@ -871,11 +854,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                     ).showSnackBar(
                                                       const SnackBar(
                                                         content: Text(
-                                                          "Bu ürün için içerik bilgisi yok.",
+                                                          'İçerik bilgisi yok.',
                                                         ),
                                                       ),
                                                     );
                                                   }
+                                                } else if (value == 'edit') {
+                                                  _showEditPastProductDialog(
+                                                    index,
+                                                    product,
+                                                  );
                                                 } else if (value == 'delete') {
                                                   final productId =
                                                       product['id'] as int;
@@ -884,7 +872,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       widget.userId!,
                                                       productId,
                                                     );
-                                                    await _loadPastProducts(); // listeyi yenile
+                                                    await loadPastProducts();
                                                   } catch (e) {
                                                     if (context.mounted) {
                                                       ScaffoldMessenger.of(
@@ -924,21 +912,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 ),
                                                 const PopupMenuItem(
                                                   value: 'edit',
-                                                  child: Text(
-                                                    'Düzenle',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                    ),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.edit_outlined,
+                                                        size: 16,
+                                                        color: Colors.grey,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Text(
+                                                        'Düzenle',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                                 const PopupMenuItem(
                                                   value: 'delete',
-                                                  child: Text(
-                                                    'Sil',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      color: Colors.red,
-                                                    ),
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.delete_outline,
+                                                        size: 16,
+                                                        color: Colors.red,
+                                                      ),
+                                                      SizedBox(width: 8),
+                                                      Text(
+                                                        'Sil',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ],
@@ -946,7 +954,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         ],
                                       ),
-                                      const Spacer(),
+                                      const SizedBox(height: 8),
                                       Text(
                                         productName,
                                         style: const TextStyle(
@@ -956,40 +964,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 6),
-                                      // Analiz Et butonu
-                                      GestureDetector(
-                                        onTap: () {
-                                          if (ingredientsText.isNotEmpty) {
-                                            _showAnalysisDialog(
-                                              productName,
-                                              ingredientsText,
-                                            );
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
+                                      const Spacer(),
+                                      if (ingredientsText.isNotEmpty)
+                                        GestureDetector(
+                                          onTap: () => _showAnalysisDialog(
+                                            productName,
+                                            ingredientsText,
                                           ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFF4CAF50,
-                                            ).withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
                                             ),
-                                          ),
-                                          child: const Text(
-                                            "🔬 Analiz Et",
-                                            style: TextStyle(
-                                              color: Color(0xFF4CAF50),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                            decoration: BoxDecoration(
+                                              color: const Color(
+                                                0xFF4CAF50,
+                                              ).withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Text(
+                                              "🔬 Analiz Et",
+                                              style: TextStyle(
+                                                color: Color(0xFF4CAF50),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 );
@@ -1010,7 +1013,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 15),
-
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1028,7 +1030,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Expanded(
                             child: Text(
                               _pastProducts.isEmpty
-                                  ? "Analiz motorunun çalışması için henüz yeterli veri yok. Geçmiş ürünlerinizi ekledikçe raporunuz burada oluşacaktır."
+                                  ? "Analiz motorunun çalışması için henüz yeterli veri yok."
                                   : "Ürün kartlarındaki '🔬 Analiz Et' butonuna tıklayarak içerik analizi yapabilirsiniz.",
                               style: const TextStyle(
                                 color: Colors.grey,
