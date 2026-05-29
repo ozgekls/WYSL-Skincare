@@ -1,27 +1,22 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:skincare_app/data/models/user_model.dart';
-// UserModel'in bulunduğu yo
 
 class ApiService {
   // ÖNEMLİ NOT:
-  // Eğer Flutter'ı Windows masaüstünde veya Web'de çalıştırıyorsan adres: 'http://127.0.0.1:8000'
-  // Eğer Android Emülatör kullanıyorsan adres: 'http://10.0.2.2:8000' olmalıdır!
-  static const String baseUrl =
-      'http://127.0.0.1:8000'; // Backend'in çalıştığı adresi buraya yazın
+  // Windows masaüstü / Web: 'http://127.0.0.1:8000'
+  // Android Emülatör      : 'http://10.0.2.2:8000'
+  static const String baseUrl = 'http://127.0.0.1:8000';
 
-  // Ürün analizini getiren fonksiyon
+  // --- ÜRÜN ANALİZİ (ID ile) ---
   static Future<List<dynamic>> getProductAnalysis(
     int userId,
     int productId,
   ) async {
     final url = Uri.parse('$baseUrl/products/analyze/$userId/$productId');
-
     try {
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
-        // Gelen JSON verisini Flutter'ın anlayacağı Listeye çeviriyoruz
         return json.decode(response.body);
       } else {
         throw Exception('Analiz yüklenemedi: ${response.statusCode}');
@@ -31,7 +26,7 @@ class ApiService {
     }
   }
 
-  // --- KAYIT OL FONKSİYONU ---
+  // --- KAYIT OL ---
   static Future<Map<String, dynamic>> register(
     String username,
     String email,
@@ -47,7 +42,6 @@ class ApiService {
         'password': password,
       }),
     );
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -56,7 +50,7 @@ class ApiService {
     }
   }
 
-  // --- GİRİŞ YAP FONKSİYONU ---
+  // --- GİRİŞ YAP ---
   static Future<Map<String, dynamic>> login(
     String email,
     String password,
@@ -68,9 +62,6 @@ class ApiService {
       body: json.encode({'email': email.trim(), 'password': password.trim()}),
     );
 
-    print("Backend Status Code: ${response.statusCode}");
-    print("Backend Response Body: ${response.body}");
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -78,7 +69,7 @@ class ApiService {
     }
   }
 
-  // --- CİLT TİPİ GÜNCELLEME FONKSİYONU ---
+  // --- CİLT TİPİ GÜNCELLEME ---
   static Future<void> updateSkinType(int userId, String skinType) async {
     final url = Uri.parse('$baseUrl/users/update-skin-type');
     final response = await http.post(
@@ -86,23 +77,17 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'user_id': userId, 'skin_type': skinType}),
     );
-
     if (response.statusCode != 200) {
       throw Exception('Cilt tipi güncellenemedi.');
     }
   }
 
-  // --- KULLANICI PROFİLİ GETİRME FONKSİYONU ---
+  // --- KULLANICI PROFİLİ ---
   static Future<UserModel> getUserProfile(int userId) async {
-    final url = Uri.parse(
-      '$baseUrl/users/$userId',
-    ); // Backend'deki kullanıcı getirme endpoint'in
-
+    final url = Uri.parse('$baseUrl/users/$userId');
     try {
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
-        // Gelen JSON verisini UserModel'e çeviriyoruz
         return UserModel.fromJson(json.decode(response.body));
       } else {
         throw Exception('Kullanıcı bilgileri yüklenemedi.');
@@ -112,7 +97,8 @@ class ApiService {
     }
   }
 
-  // --- RUTİNE ÜRÜN EKLEME FONKSİYONU ---
+  // --- RUTİNE / GEÇMİŞE ÜRÜN EKLE ---
+  /// routineType: 'Sabah Rutini' | 'Akşam Rutini' | 'liked' | 'disliked' | 'analyzed'
   static Future<void> addProductToRoutine(
     int userId,
     String routineType,
@@ -130,9 +116,7 @@ class ApiService {
         'ingredients': ingredients,
       }),
     );
-
     if (response.statusCode != 200) {
-      // Backend'in bize gönderdiği GERÇEK hatayı (detail) yakalıyoruz
       final errorData = json.decode(response.body);
       throw Exception(
         errorData['detail'] ?? 'Bilinmeyen bir veritabanı hatası',
@@ -140,7 +124,7 @@ class ApiService {
     }
   }
 
-  // --- RUTİNİ GETİRME FONKSİYONU ---
+  // --- RUTİNİ GETİR ---
   static Future<List<dynamic>> getUserRoutine(int userId) async {
     final url = Uri.parse('$baseUrl/users/$userId/routine');
     try {
@@ -155,7 +139,7 @@ class ApiService {
     }
   }
 
-  // --- GEÇMİŞ ÜRÜNLERİ GETİR ---
+  // --- GEÇMİŞ ÜRÜNLER (liked / disliked) ---
   static Future<List<dynamic>> getPastProducts(int userId) async {
     final url = Uri.parse('$baseUrl/users/$userId/past-products');
     final response = await http.get(url);
@@ -163,6 +147,30 @@ class ApiService {
       return json.decode(response.body);
     }
     throw Exception('Ürünler yüklenemedi');
+  }
+
+  // --- ANALİZ GEÇMİŞİ (analyzed) ---
+  static Future<List<dynamic>> getAnalysisHistory(int userId) async {
+    final url = Uri.parse('$baseUrl/users/$userId/analysis-history');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Analiz geçmişi yüklenemedi: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Bağlantı hatası: $e');
+    }
+  }
+
+  // --- ANALİZ GEÇMİŞİNDEN SİL ---
+  static Future<void> deleteAnalysisHistory(int userId, int productId) async {
+    final url = Uri.parse('$baseUrl/users/$userId/analysis-history/$productId');
+    final response = await http.delete(url);
+    if (response.statusCode != 200) {
+      throw Exception('Silinemedi');
+    }
   }
 
   // --- İÇERİK ANALİZİ (metin bazlı) ---
@@ -183,5 +191,37 @@ class ApiService {
       return json.decode(response.body);
     }
     throw Exception('Analiz yapılamadı');
+  }
+
+  // --- ÜRÜN GÜNCELLE ---
+  static Future<void> updateProduct(
+    int userId,
+    int productId,
+    String productName,
+    String routineType,
+  ) async {
+    final url = Uri.parse('$baseUrl/users/$userId/products/$productId');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'product_name': productName,
+        'routine_type': routineType,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['detail'] ?? 'Güncelleme başarısız');
+    }
+  }
+
+  // --- ÜRÜN SİL ---
+  static Future<void> deleteProduct(int userId, int productId) async {
+    final url = Uri.parse('$baseUrl/users/$userId/products/$productId');
+    final response = await http.delete(url);
+    if (response.statusCode != 200) {
+      final error = json.decode(response.body);
+      throw Exception(error['detail'] ?? 'Silme başarısız');
+    }
   }
 }

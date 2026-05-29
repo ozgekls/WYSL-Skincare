@@ -9,7 +9,6 @@ import hashlib
 router = APIRouter(prefix="/users", tags=["Users"])
 
 def hash_password(password: str) -> str:
-    """Şifreyi SHA-256 ile hashle. Üretimde bcrypt kullan!"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 class UserRegister(BaseModel):
@@ -35,7 +34,6 @@ def register_user(user: UserRegister, db: Session = Depends(get_db)):
         if existing_user:
             raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı!")
 
-        # Şifreyi hashleyerek kaydet (plaintext asla!)
         hashed = hash_password(user.password)
 
         query = text("""
@@ -83,7 +81,7 @@ def update_skin_type(data: SkinTypeUpdate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # --- PROFİL GETİR ---
-@router.get("/{user_id}")
+@router.get("/{user_id}/profile")
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     try:
         query = text("""
@@ -107,13 +105,18 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- ESKİ PROFİL ENDPOINT (geriye dönük uyumluluk) ---
+@router.get("/{user_id}")
+def get_user_profile_legacy(user_id: int, db: Session = Depends(get_db)):
+    return get_user_profile(user_id, db)
+
 class ProductAdd(BaseModel):
     user_id: int
-    routine_type: str
+    routine_type: str  # 'Sabah Rutini' | 'Akşam Rutini' | 'liked' | 'disliked' | 'analyzed'
     product_name: str
     ingredients: str
 
-# --- RUTİNE ÜRÜN EKLE ---
+# --- RUTİNE / GEÇMİŞE ÜRÜN EKLE ---
 @router.post("/add-product")
 def add_user_product(data: ProductAdd, db: Session = Depends(get_db)):
     try:
@@ -141,6 +144,7 @@ def get_user_routine(user_id: int, db: Session = Depends(get_db)):
                is_favorite, analysis_date
         FROM user_products 
         WHERE user_id = :u_id
+          AND routine_type IN ('Sabah Rutini', 'Akşam Rutini')
         ORDER BY analysis_date DESC
     """)
     products = db.execute(query_products, {"u_id": user_id}).fetchall()
@@ -162,7 +166,6 @@ def get_user_routine(user_id: int, db: Session = Depends(get_db)):
     routine_list = []
     for row in products:
         product_ingredients = str(row.ingredients_text).lower()
-        
         is_safe = all(bad_ing not in product_ingredients for bad_ing in user_bad_ingredients)
         
         routine_list.append({
@@ -178,24 +181,66 @@ def get_user_routine(user_id: int, db: Session = Depends(get_db)):
         
     return routine_list
 
-# --- GEÇMİŞ ÜRÜNLER ---
+# --- GEÇMİŞ ÜRÜNLER (liked / disliked) ---
 @router.get("/{user_id}/past-products")
 def get_past_products(user_id: int, db: Session = Depends(get_db)):
     query = text("""
-        SELECT id, routine_type, product_name, ingredients_text, is_favorite, analysis_date
+        SELECT id, product_name, ingredients_text, routine_type,
+               is_favorite, analysis_date
         FROM user_products 
         WHERE user_id = :u_id
+          AND routine_type IN ('liked', 'disliked')
         ORDER BY analysis_date DESC
     """)
     result = db.execute(query, {"u_id": user_id}).fetchall()
     return [
         {
             "id": row.id,
-            "routine_type": row.routine_type,
             "product_name": row.product_name,
             "ingredients_text": row.ingredients_text,
+            "routine_type": row.routine_type,
             "is_favorite": row.is_favorite,
             "analysis_date": str(row.analysis_date)
         }
         for row in result
     ]
+
+# --- ANALİZ GEÇMİŞİ (analyzed) ---
+@router.get("/{user_id}/analysis-history")
+def get_analysis_history(user_id: int, db: Session = Depends(get_db)):
+    """
+    Kullanıcının 'analyzed' routine_type ile kayıtlı ürünlerini döndürür.
+    Bunlar rutine eklenmemiş, sadece analiz edilmiş (mağazada görülen vb.) ürünlerdir.
+    """
+    query = text("""
+        SELECT id, product_name, ingredients_text, analysis_date
+        FROM user_products 
+        WHERE user_id = :u_id
+          AND routine_type = 'analyzed'
+        ORDER BY analysis_date DESC
+    """)
+    result = db.execute(query, {"u_id": user_id}).fetchall()
+    return [
+        {
+            "id": row.id,
+            "product_name": row.product_name,
+            "ingredients_text": row.ingredients_text,
+            "analysis_date": str(row.analysis_date)
+        }
+        for row in result
+    ]
+
+# --- ANALİZ GEÇMİŞİNDEN SİL ---
+@router.delete("/{user_id}/analysis-history/{product_id}")
+def delete_analysis_history(user_id: int, product_id: int, db: Session = Depends(get_db)):
+    try:
+        query = text("""
+            DELETE FROM user_products 
+            WHERE id = :pid AND user_id = :uid AND routine_type = 'analyzed'
+        """)
+        db.execute(query, {"pid": product_id, "uid": user_id})
+        db.commit()
+        return {"message": "Silindi"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

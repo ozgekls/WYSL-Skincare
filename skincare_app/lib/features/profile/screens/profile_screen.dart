@@ -593,15 +593,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
                   if (nameController.text.isEmpty) return;
-                  setState(() {
-                    _pastProducts[index]['product_name'] = nameController.text;
-                    _pastProducts[index]['routine_type'] = isLiked
-                        ? 'liked'
-                        : 'disliked';
-                  });
-                  Navigator.pop(context);
+                  final productId = product['id'] as int;
+                  try {
+                    await ApiService.updateProduct(
+                      widget.userId!,
+                      productId,
+                      nameController.text,
+                      isLiked ? 'liked' : 'disliked',
+                    );
+                    if (context.mounted) Navigator.pop(context);
+                    await _loadPastProducts(); // listeyi yenile
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+                    }
+                  }
                 },
                 child: const Text(
                   "Güncelle",
@@ -847,7 +857,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 Icons.more_vert,
                                                 color: Colors.grey,
                                               ),
-                                              onSelected: (value) {
+                                              onSelected: (value) async {
                                                 if (value == 'analyze') {
                                                   if (ingredientsText
                                                       .isNotEmpty) {
@@ -866,17 +876,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                       ),
                                                     );
                                                   }
-                                                } else if (value == 'edit') {
-                                                  _showEditPastProductDialog(
-                                                    index,
-                                                    product,
-                                                  );
                                                 } else if (value == 'delete') {
-                                                  setState(() {
-                                                    _pastProducts.removeAt(
-                                                      index,
+                                                  final productId =
+                                                      product['id'] as int;
+                                                  try {
+                                                    await ApiService.deleteProduct(
+                                                      widget.userId!,
+                                                      productId,
                                                     );
-                                                  });
+                                                    await _loadPastProducts(); // listeyi yenile
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            'Silinemedi: $e',
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
                                                 }
                                               },
                                               itemBuilder: (context) => [

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:skincare_app/data/services/api_service.dart';
 
 class AnalysisScreen extends StatefulWidget {
-  final int? userId; // Giriş yapan kullanıcı ID'si
+  final int? userId;
 
   const AnalysisScreen({super.key, this.userId});
 
@@ -9,102 +10,305 @@ class AnalysisScreen extends StatefulWidget {
   State<AnalysisScreen> createState() => _AnalysisScreenState();
 }
 
-class _AnalysisScreenState extends State<AnalysisScreen> {
+class _AnalysisScreenState extends State<AnalysisScreen>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _ingredientsController = TextEditingController();
+  final TextEditingController _productNameController = TextEditingController();
+
+  List<dynamic> _analysisHistory = [];
+  bool _isLoadingHistory = false;
+  bool _isAnalyzing = false;
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF9F6), // Arka plan rengin
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(_pulseController);
+
+    if (widget.userId != null) {
+      _loadHistory();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _ingredientsController.dispose();
+    _productNameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    if (widget.userId == null) return;
+    setState(() => _isLoadingHistory = true);
+    try {
+      final history = await ApiService.getAnalysisHistory(widget.userId!);
+      setState(() => _analysisHistory = history);
+    } catch (e) {
+      debugPrint('Geçmiş yüklenemedi: $e');
+    } finally {
+      setState(() => _isLoadingHistory = false);
+    }
+  }
+
+  // Fotoğraf seçimi simüle ediyoruz — gerçek implementasyonda image_picker kullanılacak
+  void _pickImage() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildImagePickerSheet(),
+    );
+  }
+
+  Widget _buildImagePickerSheet() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'İçerik Listesi Yükle',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2D4A31),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ürünün içerik listesinin fotoğrafını çek\nveya galerinizden seçin',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
             children: [
-              // 1. FOTOĞRAF YÜKLEME ALANI
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  // Kesik çizgi efekti (Bunu daha sonra dotted_border paketi ile geliştirebilirsin)
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.upload_rounded,
-                        color: Color(0xFF4CAF50),
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "İçerik listesi yükle",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Ürün fotoğrafı veya içerik\nlistesini buraya yükle",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D2D2D), // Koyu buton
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 14,
-                        ),
-                      ),
-                      onPressed: () {
-                        // TODO: Kamera veya Galeri açma fonksiyonu buraya gelecek
-                      },
-                      child: const Text(
-                        "Fotoğraf Seç",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+              Expanded(
+                child: _pickOptionCard(
+                  Icons.camera_alt_outlined,
+                  'Fotoğraf Çek',
+                  const Color(0xFFE8F5E9),
+                  const Color(0xFF4CAF50),
+                  () {
+                    Navigator.pop(context);
+                    _showManualEntryDialog();
+                  },
                 ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _pickOptionCard(
+                  Icons.photo_library_outlined,
+                  'Galeriden Seç',
+                  const Color(0xFFE3F2FD),
+                  const Color(0xFF2196F3),
+                  () {
+                    Navigator.pop(context);
+                    _showManualEntryDialog();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Manuel Gir'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF4A5D4E),
+                side: const BorderSide(color: Color(0xFF4A5D4E)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _showManualEntryDialog();
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
 
-              const SizedBox(height: 40),
+  Widget _pickOptionCard(
+    IconData icon,
+    String label,
+    Color bg,
+    Color iconColor,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: iconColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // 2. SON ANALİZ EDİLENLER BAŞLIĞI
+  void _showManualEntryDialog() {
+    _productNameController.clear();
+    _ingredientsController.clear();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               const Text(
-                "SON ANALİZ EDİLEN",
+                'İçerik Analizi',
                 style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                  color: Color(0xFF2D4A31),
                 ),
               ),
               const SizedBox(height: 16),
-
-              // 3. ANALİZ KARTI ŞABLONU (Backend'den liste gelince FutureBuilder ile döngüye girecek)
-              _buildAnalysisCard(),
+              TextField(
+                controller: _productNameController,
+                decoration: InputDecoration(
+                  labelText: 'Ürün Adı',
+                  hintText: 'Örn: CeraVe Moisturizing Cream',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF4CAF50)),
+                  ),
+                  prefixIcon: const Icon(Icons.inventory_2_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _ingredientsController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  labelText: 'İçerik Listesi',
+                  hintText:
+                      'Water, Glycerin, Niacinamide, Ceramide NP...\n\nİçerikleri virgülle ayırarak yapıştırın',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF4CAF50)),
+                  ),
+                  alignLabelWithHint: true,
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 80),
+                    child: Icon(Icons.list_alt_outlined),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.science_outlined, color: Colors.white),
+                  label: const Text(
+                    'Analizi Başlat',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A5D4E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () async {
+                    if (_ingredientsController.text.trim().isEmpty) return;
+                    Navigator.pop(context);
+                    await _runAnalysis(
+                      _productNameController.text.trim().isEmpty
+                          ? 'İsimsiz Ürün'
+                          : _productNameController.text.trim(),
+                      _ingredientsController.text.trim(),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -112,181 +316,773 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     );
   }
 
-  // --- İKİNCİ GÖRSELDEKİ KART TASARIMI ---
-  Widget _buildAnalysisCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 15,
-            spreadRadius: 5,
+  Future<void> _runAnalysis(String productName, String ingredients) async {
+    if (widget.userId == null) return;
+    setState(() => _isAnalyzing = true);
+
+    try {
+      // 1) Analiz yap
+      final results = await ApiService.analyzeIngredients(
+        widget.userId!,
+        ingredients,
+      );
+
+      // 2) Geçmişe kaydet
+      await ApiService.addProductToRoutine(
+        widget.userId!,
+        'analyzed',
+        productName,
+        ingredients,
+      );
+
+      // 3) Geçmişi yenile
+      await _loadHistory();
+
+      // 4) Sonuçları göster
+      if (mounted) {
+        _showResultsSheet(productName, results);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Analiz hatası: $e')));
+      }
+    } finally {
+      setState(() => _isAnalyzing = false);
+    }
+  }
+
+  void _showResultsSheet(String productName, List<dynamic> results) {
+    final danger = results.where((r) => r['status'] == 'danger').length;
+    final warning = results.where((r) => r['status'] == 'warning').length;
+    final safe = results.where((r) => r['status'] == 'safe').length;
+    final unknown = results.where((r) => r['status'] == 'unknown').length;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF5F2ED),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Ürün Başlığı
-          Row(
+          child: Column(
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF5F0),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Icon(
-                  Icons.medical_services_outlined,
-                  color: Colors.orangeAccent,
+              // Handle
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Vitamin C Suspension 23%",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.science_outlined,
+                            color: Color(0xFF4CAF50),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                productName,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2D4A31),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${results.length} içerik analiz edildi',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      "The Ordinary · Serum",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    const SizedBox(height: 16),
+                    // Özet
+                    Row(
+                      children: [
+                        _summaryChip('$danger', 'Tehlikeli', Colors.red),
+                        const SizedBox(width: 8),
+                        _summaryChip('$warning', 'Dikkat', Colors.orange),
+                        const SizedBox(width: 8),
+                        _summaryChip(
+                          '$safe',
+                          'Güvenli',
+                          const Color(0xFF4CAF50),
+                        ),
+                        const SizedBox(width: 8),
+                        _summaryChip('$unknown', 'Bilinmiyor', Colors.grey),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Skorlar (Rozetler)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildBadge(
-                "A+",
-                "Uyum",
-                const Color(0xFFE8F5E9),
-                const Color(0xFF4CAF50),
-              ),
-              _buildBadge(
-                "2/5",
-                "Comedogen",
-                const Color(0xFFFFF3E0),
-                Colors.orange,
-              ),
-              _buildBadge(
-                "Güvenli",
-                "Cilt Tipin",
-                const Color(0xFFE8F5E9),
-                const Color(0xFF4CAF50),
+              const SizedBox(height: 12),
+              // List
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                  itemCount: results.length,
+                  itemBuilder: (context, i) {
+                    final item = results[i];
+                    return _buildIngredientResultCard(item);
+                  },
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const Divider(color: Color(0xFFF0F0F0), thickness: 1),
-          const SizedBox(height: 12),
-
-          // İçerik Listesi
-          _buildIngredientRow(
-            "Ascorbic Acid",
-            "Güvenli",
-            const Color(0xFF4CAF50),
-            const Color(0xFFE8F5E9),
-          ),
-          const SizedBox(height: 12),
-          _buildIngredientRow(
-            "Propylene Glycol",
-            "Dikkat",
-            Colors.orange,
-            const Color(0xFFFFF3E0),
-          ),
-          const SizedBox(height: 12),
-          _buildIngredientRow(
-            "Isopropyl Myristate",
-            "Kaçın",
-            Colors.redAccent,
-            const Color(0xFFFFEBEE),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildBadge(
-    String score,
-    String label,
-    Color bgColor,
-    Color textColor,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(15),
+  Widget _summaryChip(String count, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              count,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(label, style: TextStyle(fontSize: 9, color: color)),
+          ],
+        ),
       ),
-      child: Column(
+    );
+  }
+
+  Widget _buildIngredientResultCard(Map<String, dynamic> item) {
+    final status = item['status'] ?? 'unknown';
+    Color statusColor;
+    IconData statusIcon;
+    String statusLabel;
+
+    switch (status) {
+      case 'danger':
+        statusColor = Colors.red;
+        statusIcon = Icons.dangerous_outlined;
+        statusLabel = 'Tehlikeli';
+        break;
+      case 'warning':
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning_amber_outlined;
+        statusLabel = 'Dikkat';
+        break;
+      case 'safe':
+        statusColor = const Color(0xFF4CAF50);
+        statusIcon = Icons.check_circle_outline;
+        statusLabel = 'Güvenli';
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.help_outline;
+        statusLabel = 'Bilinmiyor';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            score,
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(statusIcon, color: statusColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item['ingredient_name'] ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF2D4A31),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item['reason'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    height: 1.3,
+                  ),
+                ),
+                if (item['comedogenic_score'] != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _miniScoreBar(
+                        'Comedogenic',
+                        item['comedogenic_score'] as int? ?? 0,
+                        Colors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      _miniScoreBar(
+                        'Irritasyon',
+                        item['irritation_score'] as int? ?? 0,
+                        Colors.redAccent,
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildIngredientRow(
-    String name,
-    String status,
-    Color statusColor,
-    Color bgColor,
-  ) {
+  Widget _miniScoreBar(String label, int score, Color color) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          name,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
+          '$label: ',
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            status,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+        ...List.generate(5, (i) {
+          return Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(right: 2),
+            decoration: BoxDecoration(
+              color: i < score ? color : Colors.grey[200],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  void _showHistoryDetail(Map<String, dynamic> item) async {
+    if (widget.userId == null) return;
+
+    final ingredients = item['ingredients_text'] ?? '';
+    if (ingredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bu ürün için içerik bilgisi yok.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                SizedBox(height: 16),
+                Text('Yeniden analiz ediliyor...'),
+              ],
             ),
           ),
         ),
-      ],
+      ),
+    );
+
+    try {
+      final results = await ApiService.analyzeIngredients(
+        widget.userId!,
+        ingredients,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        _showResultsSheet(item['product_name'] ?? 'Ürün', results);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F2ED),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            // ── BAŞLIK ──────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 30, 24, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'KEŞFEDİN 🔬',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'İçerik\nAnalizörü',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D4A31),
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Herhangi bir ürünün içeriklerini analiz edin',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── YÜKLEME ALANI ────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                child: GestureDetector(
+                  onTap: _isAnalyzing ? null : _pickImage,
+                  child: AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) => Transform.scale(
+                      scale: _isAnalyzing ? 1.0 : _pulseAnimation.value,
+                      child: child,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF3A5240), Color(0xFF4A6B52)],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3A5240).withOpacity(0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: _isAnalyzing
+                          ? const Column(
+                              children: [
+                                CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'İçerikler analiz ediliyor...',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Veritabanı ile karşılaştırılıyor',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.document_scanner_outlined,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'İçerik Listesi Tara',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Ürün fotoğrafı çek veya\niçerikleri manuel gir',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.75),
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _actionPill(
+                                      Icons.camera_alt_outlined,
+                                      'Fotoğraf',
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _actionPill(Icons.edit, 'Manuel Gir'),
+                                  ],
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── ANALİZ GEÇMİŞİ BAŞLIĞI ──────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 36, 24, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'ANALİZ GEÇMİŞİ',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_analysisHistory.isNotEmpty)
+                      Text(
+                        '${_analysisHistory.length} ürün',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF4CAF50),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── GEÇMİŞ LİSTESİ ──────────────────────────
+            if (_isLoadingHistory)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                  ),
+                ),
+              )
+            else if (_analysisHistory.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.science_outlined,
+                          size: 40,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Henüz analiz yapılmadı',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Yukarıdaki butona tıklayarak\nilk analizinizi yapın',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final item = Map<String, dynamic>.from(
+                      _analysisHistory[index],
+                    );
+                    return _buildHistoryCard(item);
+                  }, childCount: _analysisHistory.length),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionPill(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(Map<String, dynamic> item) {
+    final productName = item['product_name'] ?? 'İsimsiz Ürün';
+    final date = item['analysis_date'] ?? '';
+    final ingredients = item['ingredients_text'] ?? '';
+    final ingredientCount = ingredients.isEmpty
+        ? 0
+        : ingredients.split(',').length;
+
+    // Tarihi formatla
+    String dateLabel = '';
+    try {
+      final d = DateTime.parse(date);
+      final now = DateTime.now();
+      final diff = now.difference(d);
+      if (diff.inDays == 0) {
+        dateLabel = 'Bugün';
+      } else if (diff.inDays == 1) {
+        dateLabel = 'Dün';
+      } else if (diff.inDays < 7) {
+        dateLabel = '${diff.inDays} gün önce';
+      } else {
+        dateLabel = '${d.day}.${d.month}.${d.year}';
+      }
+    } catch (_) {
+      dateLabel = date.isNotEmpty ? date.substring(0, 10) : '';
+    }
+
+    return GestureDetector(
+      onTap: () => _showHistoryDetail(item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(
+                child: Text('🧴', style: TextStyle(fontSize: 22)),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    productName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF2D4A31),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.format_list_bulleted,
+                        size: 11,
+                        color: Colors.grey[500],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$ingredientCount içerik',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      ),
+                      const SizedBox(width: 10),
+                      Icon(
+                        Icons.access_time,
+                        size: 11,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        dateLabel,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F2ED),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF4A5D4E),
+                size: 18,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
