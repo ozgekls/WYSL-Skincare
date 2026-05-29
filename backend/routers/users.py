@@ -189,7 +189,7 @@ def get_past_products(user_id: int, db: Session = Depends(get_db)):
                is_favorite, analysis_date
         FROM user_products 
         WHERE user_id = :u_id
-          AND routine_type IN ('liked', 'disliked')
+          AND routine_type IN ('liked', 'disliked', 'Sabah Rutini', 'Akşam Rutini', 'analyzed')
         ORDER BY analysis_date DESC
     """)
     result = db.execute(query, {"u_id": user_id}).fetchall()
@@ -241,6 +241,57 @@ def delete_analysis_history(user_id: int, product_id: int, db: Session = Depends
         db.execute(query, {"pid": product_id, "uid": user_id})
         db.commit()
         return {"message": "Silindi"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+from pydantic import BaseModel
+
+class ProductUpdate(BaseModel):
+    product_name: str
+    routine_type: str
+
+# --- ÜRÜN GÜNCELLE ---
+@router.put("/{user_id}/products/{product_id}")
+def update_user_product(user_id: int, product_id: int, data: ProductUpdate, db: Session = Depends(get_db)):
+    try:
+        query = text("""
+            UPDATE user_products 
+            SET product_name = :name, routine_type = :rtype
+            WHERE id = :pid AND user_id = :uid
+        """)
+        result = db.execute(query, {
+            "name": data.product_name,
+            "rtype": data.routine_type,
+            "pid": product_id,
+            "uid": user_id
+        })
+        db.commit()
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+        return {"message": "Güncellendi"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- ÜRÜN SİL ---
+@router.delete("/{user_id}/products/{product_id}")
+def delete_user_product(user_id: int, product_id: int, db: Session = Depends(get_db)):
+    try:
+        query = text("""
+            DELETE FROM user_products 
+            WHERE id = :pid AND user_id = :uid
+        """)
+        result = db.execute(query, {"pid": product_id, "uid": user_id})
+        db.commit()
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+        return {"message": "Silindi"}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
