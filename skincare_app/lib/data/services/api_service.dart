@@ -6,7 +6,7 @@ class ApiService {
   // ÖNEMLİ NOT:
   // Windows masaüstü / Web: 'http://127.0.0.1:8000'
   // Android Emülatör      : 'http://10.0.2.2:8000'
-  //telefon bağlantısı: http://192.168.1.177:8000
+
   static const String baseUrl = 'http://127.0.0.1:8000';
 
   // --- ÜRÜN ANALİZİ (ID ile) ---
