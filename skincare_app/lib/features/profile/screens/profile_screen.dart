@@ -34,10 +34,53 @@ class ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoadingProducts = true);
     try {
       final products = await ApiService.getPastProducts(widget.userId!);
+
+      // Ürünleri isimlerine göre gruplama mantığı (Çift görünmeyi engeller)
+      final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+      for (var p in products) {
+        final type = p['routine_type'] ?? '';
+        if (type == 'analyzed') continue; // Analiz edilenleri profilden gizle
+
+        final name = p['product_name']?.toString().trim() ?? 'İsimsiz';
+        final lowerName = name.toLowerCase();
+
+        if (!grouped.containsKey(lowerName)) {
+          grouped[lowerName] = [];
+        }
+        grouped[lowerName]!.add(Map<String, dynamic>.from(p));
+      }
+
+      // Gruplanmış listeyi tekil gösterim kartlarına dönüştür
+      final List<Map<String, dynamic>> displayList = [];
+      grouped.forEach((key, list) {
+        final types = list.map((e) => e['routine_type'] as String).toSet();
+
+        String displayType = '';
+        if (types.contains('Sabah Rutini') && types.contains('Akşam Rutini')) {
+          displayType = 'Sabah & Akşam';
+        } else if (types.contains('Sabah Rutini')) {
+          displayType = 'Sabah Rutini';
+        } else if (types.contains('Akşam Rutini')) {
+          displayType = 'Akşam Rutini';
+        } else if (types.contains('liked')) {
+          displayType = 'liked';
+        } else if (types.contains('disliked')) {
+          displayType = 'disliked';
+        } else {
+          displayType = types.isNotEmpty ? types.first : '';
+        }
+
+        final representative = Map<String, dynamic>.from(list.first);
+        representative['display_type'] = displayType;
+        // Düzenleme/Silme işlemlerinde tüm varyasyonları yönetebilmek için orijinal listeyi saklıyoruz
+        representative['original_records'] = list;
+
+        displayList.add(representative);
+      });
+
       setState(() {
-        _pastProducts = products
-            .map((p) => Map<String, dynamic>.from(p))
-            .toList();
+        _pastProducts = displayList;
       });
     } catch (e) {
       debugPrint('Ürünler yüklenemedi: $e');
@@ -431,10 +474,14 @@ class ProfileScreenState extends State<ProfileScreen> {
     final nameController = TextEditingController(
       text: product['product_name'] ?? product['name'] ?? '',
     );
-    bool isLiked =
-        product['routine_type'] == 'liked' ||
-        product['routine_type'] == 'Sabah Rutini' ||
-        product['routine_type'] == 'Akşam Rutini';
+
+    final originalRecords =
+        product['original_records'] as List<Map<String, dynamic>>?;
+    final allTypes =
+        originalRecords?.map((e) => e['routine_type'] as String).toList() ?? [];
+
+    // Eğer ürün zaten anlaşamadı olarak işaretlenmemişse varsayılan anlaştı olsun
+    bool isLiked = !allTypes.contains('disliked');
 
     showDialog(
       context: context,
@@ -547,14 +594,67 @@ class ProfileScreenState extends State<ProfileScreen> {
                 ),
                 onPressed: () async {
                   if (nameController.text.isEmpty) return;
-                  final productId = product['id'] as int;
+
                   try {
-                    await ApiService.updateProduct(
-                      widget.userId!,
-                      productId,
-                      nameController.text,
-                      isLiked ? 'liked' : 'disliked',
-                    );
+                    if (originalRecords != null && originalRecords.isNotEmpty) {
+                      if (isLiked) {
+                        // Kullanıcı "Anlaştı" dedi.
+                        bool hasRoutine =
+                            allTypes.contains('Sabah Rutini') ||
+                            allTypes.contains('Akşam Rutini');
+
+                        if (hasRoutine) {
+                          // Eğer ürün rutinlerdeyse, onu rutinden ÇIKARMA (ismini güncelle sadece)
+                          for (var record in originalRecords) {
+                            await ApiService.updateProduct(
+                              widget.userId!,
+                              record['id'] as int,
+                              nameController.text,
+                              record['routine_type'], // Orijinal rutin tipini koruyoruz!
+                            );
+                          }
+                        } else {
+                          // Rutinde değilse ve geçmişteyse hepsini 'liked' yap
+                          await ApiService.updateProduct(
+                            widget.userId!,
+                            originalRecords.first['id'] as int,
+                            nameController.text,
+                            'liked',
+                          );
+                          // Varsa diğer kopyaları temizle
+                          for (int i = 1; i < originalRecords.length; i++) {
+                            await ApiService.deleteProduct(
+                              widget.userId!,
+                              originalRecords[i]['id'] as int,
+                            );
+                          }
+                        }
+                      } else {
+                        // Kullanıcı "Anlaşamadı" dedi. Rutinlerden düşmeli!
+                        await ApiService.updateProduct(
+                          widget.userId!,
+                          originalRecords.first['id'] as int,
+                          nameController.text,
+                          'disliked',
+                        );
+                        // Anlaşamadığı bir ürünün diğer kopyalarını (rutinlerini) siliyoruz
+                        for (int i = 1; i < originalRecords.length; i++) {
+                          await ApiService.deleteProduct(
+                            widget.userId!,
+                            originalRecords[i]['id'] as int,
+                          );
+                        }
+                      }
+                    } else {
+                      // Fallback: Beklenmeyen durum
+                      await ApiService.updateProduct(
+                        widget.userId!,
+                        product['id'] as int,
+                        nameController.text,
+                        isLiked ? 'liked' : 'disliked',
+                      );
+                    }
+
                     if (context.mounted) Navigator.pop(context);
                     await loadPastProducts();
                   } catch (e) {
@@ -588,6 +688,8 @@ class ProfileScreenState extends State<ProfileScreen> {
         return '☀️ Sabah';
       case 'Akşam Rutini':
         return '🌙 Akşam';
+      case 'Sabah & Akşam':
+        return '☀️ Sabah & Akşam'; // YENİ: Ortak gösterim
       case 'analyzed':
         return '🔬 Analiz';
       default:
@@ -600,6 +702,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       case 'liked':
       case 'Sabah Rutini':
       case 'Akşam Rutini':
+      case 'Sabah & Akşam': // YENİ: Ortak gösterim rengi
         return Colors.green;
       case 'disliked':
         return Colors.red;
@@ -776,8 +879,11 @@ class ProfileScreenState extends State<ProfileScreen> {
                               itemCount: _pastProducts.length,
                               itemBuilder: (context, index) {
                                 final product = _pastProducts[index];
+                                // Ekrandaki tip için artık `display_type` kullanıyoruz
                                 final routineType =
-                                    product['routine_type'] ?? '';
+                                    product['display_type'] ??
+                                    product['routine_type'] ??
+                                    '';
                                 final productName =
                                     product['product_name'] ?? 'İsimsiz';
                                 final ingredientsText =
@@ -811,22 +917,27 @@ class ProfileScreenState extends State<ProfileScreen> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 3,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: color.withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              label,
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: color,
-                                                fontWeight: FontWeight.bold,
+                                          Expanded(
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: color.withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                label,
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  color: color,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ),
@@ -865,13 +976,30 @@ class ProfileScreenState extends State<ProfileScreen> {
                                                     product,
                                                   );
                                                 } else if (value == 'delete') {
-                                                  final productId =
-                                                      product['id'] as int;
+                                                  final originalRecords =
+                                                      product['original_records']
+                                                          as List<
+                                                            Map<String, dynamic>
+                                                          >?;
                                                   try {
-                                                    await ApiService.deleteProduct(
-                                                      widget.userId!,
-                                                      productId,
-                                                    );
+                                                    // Gruba ait TİP ayrımı gözetmeksizin hepsini sil (Çünkü menüden siliyor)
+                                                    if (originalRecords !=
+                                                            null &&
+                                                        originalRecords
+                                                            .isNotEmpty) {
+                                                      for (var record
+                                                          in originalRecords) {
+                                                        await ApiService.deleteProduct(
+                                                          widget.userId!,
+                                                          record['id'] as int,
+                                                        );
+                                                      }
+                                                    } else {
+                                                      await ApiService.deleteProduct(
+                                                        widget.userId!,
+                                                        product['id'] as int,
+                                                      );
+                                                    }
                                                     await loadPastProducts();
                                                   } catch (e) {
                                                     if (context.mounted) {

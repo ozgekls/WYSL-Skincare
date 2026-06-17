@@ -82,9 +82,10 @@ class _AnalysisScreenState extends State<AnalysisScreen>
 
     final scannedText = recognized.text;
     if (scannedText.isNotEmpty && mounted) {
-      // Taranan metni ingredient alanına doldur
-      _ingredientsController.text = scannedText;
-      _showManualEntryDialog(); // Kullanıcı görsün ve düzeltsin
+      final filteredText = _extractIngredientsText(scannedText);
+      _ingredientsController.text = filteredText;
+
+      _showManualEntryDialog(clearFields: false);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,6 +93,137 @@ class _AnalysisScreenState extends State<AnalysisScreen>
         );
       }
     }
+  }
+
+  String _extractIngredientsText(String rawText) {
+    String extractedText = rawText;
+
+    // --- 1. AŞAMA: BAŞLANGIÇ NOKTASINI BUL ---
+    // Türkçe İ/ı/I harf karmaşasını ve "İçeriğinde" gibi kelimeleri atlamak için özel regex
+    final RegExp startRegExp = RegExp(
+      r'(?:[iİıI]ngredients?|[iİıI][cçCÇ][iİıI]ndek[iİıI]ler|[iİıI][cçCÇ]er[iİıI]k(?:ler)?|[iİıI][cçCÇ]er[iİıI][gğGĞ][iİıI]|[fF]orm[uüUÜ]l|[cC]omposition)(?![a-zA-ZğüşıöçĞÜŞİÖÇ])\s*[:\-]*\s*\n*(.*)',
+      caseSensitive: false,
+      dotAll: true,
+    );
+
+    final match = startRegExp.firstMatch(extractedText);
+
+    if (match != null && match.group(1) != null) {
+      // Başlığı bulduysa sonrasını al
+      extractedText = match.group(1)!;
+    } else {
+      // B PLANI: Eğer başlığı bulamazsa (satıcı yazmamışsa), "AQUA" veya "WATER" kelimesini arayıp oradan başla!
+      final fallbackMatch = RegExp(
+        r'\b(AQUA|WATER|SU)\b',
+        caseSensitive: false,
+      ).firstMatch(extractedText);
+      if (fallbackMatch != null) {
+        extractedText = extractedText.substring(fallbackMatch.start);
+      }
+    }
+
+    // --- 2. AŞAMA: BİTİŞ NOKTASINI BUL (Sonrasını Çöpe At) ---
+    final stopPhrases = [
+      r'iyi\s+ve\s+sağlıklı',
+      r'sağlıklı\s+günler',
+      r'iyi\s+günler',
+      r'sevgilerimizle',
+      r'saat\s+içinde\s+cevaplandı',
+      r'satıcıya\s+sor',
+      r'sepete\s+ekle',
+      r'soruyu\s+beğen',
+      r'kullanıma\s+uygundur',
+      r'doktorunuza\s+danış',
+      r'\[bi\s*\d+\]', // Bioderma formül kodları
+      r'cevaplandı',
+      r'stoklarımız', // "Stoklarımız yenilenmiştir" vb.
+    ];
+
+    for (var phrase in stopPhrases) {
+      final stopMatch = RegExp(
+        phrase,
+        caseSensitive: false,
+      ).firstMatch(extractedText);
+      if (stopMatch != null) {
+        extractedText = extractedText.substring(0, stopMatch.start);
+      }
+    }
+
+    // --- 3. AŞAMA: TEMİZLEME VE VİRGÜLLE AYIRMA ---
+    extractedText = extractedText.replaceAll('\n', ', ');
+    extractedText = extractedText.replaceAll('.', ',');
+    extractedText = extractedText.replaceAll('•', ',');
+    extractedText = extractedText.replaceAll(';', ',');
+    // NOT: Tireleri (-) sildirmedim çünkü C12-15 veya PEG-10 gibi önemli kimyasal formülleri bozuyor.
+
+    extractedText = extractedText.replaceAll(RegExp(r',+'), ',');
+
+    // --- 4. AŞAMA: İÇİNE KARIŞAN ÇÖPLERİ CIKARTMA (Filtre) ---
+    final badWords = [
+      'merhaba',
+      'teşekkür',
+      'günler',
+      'dileriz',
+      'efendim',
+      'ürün',
+      'içeriği',
+      'soruyu',
+      'beğen',
+      'saat',
+      'içinde',
+      'cevaplandı',
+      'satici',
+      'sepete',
+      'ekle',
+      'trendyol',
+      'müşteri',
+      'hizmetleri',
+      'türkiye',
+      'stok',
+      'yenilenmiştir',
+      'kampanya',
+      'sipariş',
+      'soru',
+      'cevap',
+      'havlu',
+      'bilek',
+    ];
+
+    extractedText = extractedText
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) {
+          if (e.isEmpty || e.length <= 2) return false;
+
+          final lowerE = e.toLowerCase();
+
+          // Tarih formatlarını (Örn: 22 Temmuz) yok et
+          if (RegExp(
+            r'\d{1,2}\s+(ocak|şubat|subat|mart|nisan|mayıs|mayis|haziran|temmuz|ağustos|agustos|eylül|eylul|ekim|kasım|kasim|aralık|aralik)',
+            caseSensitive: false,
+          ).hasMatch(lowerE))
+            return false;
+
+          // Saat formatlarını (Örn: 2:53, 09:50) yok et
+          if (RegExp(r'\d{1,2}:\d{2}').hasMatch(lowerE)) return false;
+
+          // ÖsO, ÖS, AM, PM gibi zaman kelimelerini yok et
+          if (RegExp(
+            r'\b(ös|öö|am|pm|öso)\b',
+            caseSensitive: false,
+          ).hasMatch(lowerE))
+            return false;
+
+          // E-ticaret kelimelerini barındıran kısımları toptan yok et
+          for (var word in badWords) {
+            if (lowerE.contains(word)) return false;
+          }
+
+          return true;
+        })
+        .join(', ');
+
+    return extractedText;
   }
 
   Widget _buildImagePickerSheet() {
@@ -142,7 +274,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                   const Color(0xFFE8F5E9),
                   const Color(0xFF4CAF50),
                   () {
-                    // BURASI GÜNCELLENDİ: Kamera seçeneği
                     Navigator.pop(context);
                     _pickAndScanImage(ImageSource.camera);
                   },
@@ -156,7 +287,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                   const Color(0xFFE3F2FD),
                   const Color(0xFF2196F3),
                   () {
-                    // BURASI GÜNCELLENDİ: Galeri seçeneği
                     Navigator.pop(context);
                     _pickAndScanImage(ImageSource.gallery);
                   },
@@ -179,7 +309,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: () {
-                // Manuel giriş aynı kaldı
                 Navigator.pop(context);
                 _showManualEntryDialog();
               },
@@ -224,9 +353,11 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     );
   }
 
-  void _showManualEntryDialog() {
-    _productNameController.clear();
-    _ingredientsController.clear();
+  void _showManualEntryDialog({bool clearFields = true}) {
+    if (clearFields) {
+      _productNameController.clear();
+      _ingredientsController.clear();
+    }
 
     showModalBottomSheet(
       context: context,
@@ -349,13 +480,13 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     setState(() => _isAnalyzing = true);
 
     try {
-      // 1) Analiz yap
       final results = await ApiService.analyzeIngredients(
         widget.userId!,
         ingredients,
       );
 
-      // 2) Geçmişe kaydet
+      debugPrint("API'DEN GELEN HAM VERİ: $results");
+
       await ApiService.addProductToRoutine(
         widget.userId!,
         'analyzed',
@@ -363,10 +494,8 @@ class _AnalysisScreenState extends State<AnalysisScreen>
         ingredients,
       );
 
-      // 3) Geçmişi yenile
       await _loadHistory();
 
-      // 4) Sonuçları göster
       if (mounted) {
         _showResultsSheet(productName, results);
       }
@@ -402,7 +531,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
           ),
           child: Column(
             children: [
-              // Handle
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
                 child: Center(
@@ -416,7 +544,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                   ),
                 ),
               ),
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: Column(
@@ -464,7 +591,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Özet
                     Row(
                       children: [
                         _summaryChip('$danger', 'Tehlikeli', Colors.red),
@@ -484,7 +610,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 ),
               ),
               const SizedBox(height: 12),
-              // List
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
@@ -721,6 +846,92 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     }
   }
 
+  Future<void> _deleteHistoryItem(int productId) async {
+    try {
+      await ApiService.deleteProduct(widget.userId!, productId);
+      await _loadHistory();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Analiz geçmişinden silindi.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      }
+    }
+  }
+
+  Future<void> _duplicateToRoutine(
+    String productName,
+    String ingredients,
+    String type,
+  ) async {
+    try {
+      await ApiService.addProductToRoutine(
+        widget.userId!,
+        type,
+        productName,
+        ingredients,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$productName listeye kopyalandı!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata: $e')));
+      }
+    }
+  }
+
+  void _showAddToPastDialog(String productName, String ingredients) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          "Geçmiş Ürünlere Ekle",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text("Cildiniz bu ürünle anlaştı mı?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _duplicateToRoutine(productName, ingredients, 'disliked');
+            },
+            child: const Text(
+              "❌ Anlaşamadı",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4CAF50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _duplicateToRoutine(productName, ingredients, 'liked');
+            },
+            child: const Text(
+              "✅ Anlaştı",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -728,7 +939,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── BAŞLIK ──────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 30, 24, 0),
@@ -763,8 +973,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 ),
               ),
             ),
-
-            // ── YÜKLEME ALANI ────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -872,8 +1080,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 ),
               ),
             ),
-
-            // ── ANALİZ GEÇMİŞİ BAŞLIĞI ──────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 36, 24, 12),
@@ -902,8 +1108,6 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 ),
               ),
             ),
-
-            // ── GEÇMİŞ LİSTESİ ──────────────────────────
             if (_isLoadingHistory)
               const SliverToBoxAdapter(
                 child: Padding(
@@ -1003,8 +1207,8 @@ class _AnalysisScreenState extends State<AnalysisScreen>
     final ingredientCount = ingredients.isEmpty
         ? 0
         : ingredients.split(',').length;
+    final productId = item['id'] as int?;
 
-    // Tarihi formatla
     String dateLabel = '';
     try {
       final d = DateTime.parse(date);
@@ -1096,17 +1300,106 @@ class _AnalysisScreenState extends State<AnalysisScreen>
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F2ED),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF4A5D4E),
-                size: 18,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  onSelected: (value) async {
+                    if (value == 'sabah') {
+                      await _duplicateToRoutine(
+                        productName,
+                        ingredients,
+                        'Sabah Rutini',
+                      );
+                    } else if (value == 'aksam') {
+                      await _duplicateToRoutine(
+                        productName,
+                        ingredients,
+                        'Akşam Rutini',
+                      );
+                    } else if (value == 'gecmis') {
+                      _showAddToPastDialog(productName, ingredients);
+                    } else if (value == 'sil') {
+                      if (productId != null) {
+                        await _deleteHistoryItem(productId);
+                      }
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'sabah',
+                      child: Row(
+                        children: [
+                          Text('☀️', style: TextStyle(fontSize: 14)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Sabah Rutinine Ekle',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'aksam',
+                      child: Row(
+                        children: [
+                          Text('🌙', style: TextStyle(fontSize: 14)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Akşam Rutinine Ekle',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'gecmis',
+                      child: Row(
+                        children: [
+                          Text('🕰️', style: TextStyle(fontSize: 14)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Geçmiş Ürünlere Ekle',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'sil',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Sil',
+                            style: TextStyle(color: Colors.red, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F2ED),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFF4A5D4E),
+                    size: 18,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
