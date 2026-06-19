@@ -1,14 +1,6 @@
-// lib/features/auth/screens/skin_test_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:skincare_app/data/services/api_service.dart';
-// MainNavigationScreen'in gerçek yolunu buraya yaz.
-// Projenizde neredeyse o import'u düzenle:
-import 'package:skincare_app/features/home/screens/home_screen.dart';
 import 'package:skincare_app/main.dart';
-
-// ignore: unused_import — MainNavigationScreen varsa aşağıdakini kullan:
-// import 'package:skincare_app/widgets/main_navigation_screen.dart';
 
 class SkinTestScreen extends StatefulWidget {
   final int userId;
@@ -406,25 +398,19 @@ class _SkinTestScreenState extends State<SkinTestScreen> {
   }
 
   void _finishTest() async {
-    String resultSkinType;
-
-    if (oilyScore >= 24) {
-      resultSkinType = 'Yağlı';
-    } else if (dryScore >= 24) {
-      resultSkinType = 'Kuru';
-    } else if (oilyScore >= 16 && dryScore >= 16) {
-      resultSkinType = 'Karma';
-    } else {
-      resultSkinType = 'Normal';
-    }
-
-    if (sensitivityScore >= 8) {
-      resultSkinType = 'Hassas $resultSkinType'.trim();
-    }
-
     try {
-      await ApiService.updateSkinType(widget.userId, resultSkinType);
+      // Puanları backend'e gönderiyoruz ve o bize sonucu string olarak dönüyor
+      final resultSkinType = await ApiService.submitSkinTest(
+        userId: widget.userId,
+        oilyScore: oilyScore,
+        dryScore: dryScore,
+        sensitivityScore: sensitivityScore,
+        pigmentationScore: pigmentationScore,
+        agingScore: agingScore,
+      );
+
       if (mounted) {
+        // Backend'in hesapladığı sonucu ekranda göster
         _showResultDialog(resultSkinType);
       }
     } catch (e) {

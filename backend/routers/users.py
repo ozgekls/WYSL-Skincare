@@ -5,7 +5,7 @@ from sqlalchemy import text
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import hashlib
-
+from pydantic import BaseModel
 router = APIRouter(prefix="/users", tags=["Users"])
 
 def hash_password(password: str) -> str:
@@ -23,6 +23,14 @@ class UserLogin(BaseModel):
 class SkinTypeUpdate(BaseModel):
     user_id: int
     skin_type: str
+
+class SkinTestSubmit(BaseModel):
+    user_id: int
+    oily_score: int
+    dry_score: int
+    sensitivity_score: int
+    pigmentation_score: int = 0
+    aging_score: int = 0
 
 # --- KAYIT OL ---
 @router.post("/register")
@@ -246,7 +254,7 @@ def delete_analysis_history(user_id: int, product_id: int, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
     
 
-from pydantic import BaseModel
+
 
 class ProductUpdate(BaseModel):
     product_name: str
@@ -292,6 +300,101 @@ def delete_user_product(user_id: int, product_id: int, db: Session = Depends(get
         return {"message": "Silindi"}
     except HTTPException:
         raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# --- GÜVENLİ / TEHLİKELİ İÇERİK LİSTESİ ---
+@router.get("/{user_id}/safe-ingredients")
+def get_safe_ingredients(user_id: int, db: Session = Depends(get_db)):
+    """
+    v_user_safe_ingredients view'ını kullanarak kullanıcının
+    güvenli ve tehlikeli içeriklerini döndürür.
+
+    """
+    try:
+        query = text("""
+            SELECT
+                ingredient_name,
+                comodogenic_score,
+                irritation_score,
+                is_allergen,
+                has_severe_reaction,
+                last_reaction,
+                is_safe
+            FROM v_user_safe_ingredients
+            WHERE user_id = :u_id
+              AND (is_safe = FALSE OR last_reaction IS NOT NULL)
+            ORDER BY
+                is_allergen DESC,
+                has_severe_reaction DESC,
+                comodogenic_score DESC NULLS LAST
+            LIMIT 50
+        """)
+        result = db.execute(query, {"u_id": user_id}).fetchall()
+
+        unsafe = []
+        flagged = []
+
+        for row in result:
+            item = {
+                "ingredient_name": row.ingredient_name,
+                "comedogenic_score": row.comodogenic_score,
+                "irritation_score": row.irritation_score,
+                "is_allergen": bool(row.is_allergen),
+                "has_severe_reaction": bool(row.has_severe_reaction),
+                "last_reaction": row.last_reaction,
+                "is_safe": bool(row.is_safe),
+                "reason": (
+                    "Alerji listenizde kayıtlı" if row.is_allergen
+                    else "Daha önce şiddetli reaksiyon verdiniz" if row.has_severe_reaction
+                    else "Geçmişte negatif reaksiyon"
+                ),
+            }
+            if not row.is_safe:
+                unsafe.append(item)
+            else:
+                flagged.append(item)
+
+        return {
+            "user_id": user_id,
+            "unsafe_count": len(unsafe),
+            "flagged_count": len(flagged),
+            "unsafe_ingredients": unsafe,
+            "flagged_ingredients": flagged,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# --- CİLT TESTİ SONUCUNU HESAPLA VE KAYDET ---
+@router.post("/submit-skin-test")
+def submit_skin_test(data: SkinTestSubmit, db: Session = Depends(get_db)):
+    try:
+        # sp_calculate_skin_type fonksiyonunu çağırıyoruz
+        query = text("""
+            SELECT sp_calculate_skin_type(
+                :u_id, :oily, :dry, :sens, :pigment, :aging
+            )
+        """)
+        
+        # scalar() kullanarak dönen tek değeri (skin_type string'ini) alıyoruz
+        calculated_skin_type = db.execute(query, {
+            "u_id": data.user_id,
+            "oily": data.oily_score,
+            "dry": data.dry_score,
+            "sens": data.sensitivity_score,
+            "pigment": data.pigmentation_score,
+            "aging": data.aging_score
+        }).scalar()
+        
+        # Veritabanında değişiklik yapıldığı için (INSERT işlemi) commit yapıyoruz
+        db.commit()
+        
+        return {
+            "message": "Cilt testi başarıyla kaydedildi", 
+            "skin_type": calculated_skin_type
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

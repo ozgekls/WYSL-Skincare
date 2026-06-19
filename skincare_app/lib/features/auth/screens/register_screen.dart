@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:skincare_app/data/services/api_service.dart';
-import 'package:skincare_app/features/home/screens/home_screen.dart';
 import 'package:skincare_app/features/auth/screens/skin_test_screen.dart';
 import 'package:skincare_app/main.dart';
 

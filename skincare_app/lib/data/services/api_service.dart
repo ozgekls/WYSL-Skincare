@@ -83,6 +83,38 @@ class ApiService {
     }
   }
 
+  // --- CİLT TESTİ SKORLARINI GÖNDER VE SONUCU AL ---
+  static Future<String> submitSkinTest({
+    required int userId,
+    required int oilyScore,
+    required int dryScore,
+    required int sensitivityScore,
+    required int pigmentationScore,
+    required int agingScore,
+  }) async {
+    final url = Uri.parse('$baseUrl/users/submit-skin-test');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'user_id': userId,
+        'oily_score': oilyScore,
+        'dry_score': dryScore,
+        'sensitivity_score': sensitivityScore,
+        'pigmentation_score': pigmentationScore,
+        'aging_score': agingScore,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      // Backend'den hesaplanıp dönen cilt tipini (örn: "oily") geri döndürüyoruz
+      return data['skin_type'];
+    } else {
+      throw Exception('Cilt testi kaydedilemedi: ${response.body}');
+    }
+  }
+
   // --- KULLANICI PROFİLİ ---
   static Future<UserModel> getUserProfile(int userId) async {
     final url = Uri.parse('$baseUrl/users/$userId');
@@ -223,6 +255,42 @@ class ApiService {
     if (response.statusCode != 200) {
       final error = json.decode(response.body);
       throw Exception(error['detail'] ?? 'Silme başarısız');
+    }
+  }
+
+  // --- İÇERİK ÇAKIŞMA ANALİZİ (VIEW: v_ingredient_conflict_detail) ---
+  static Future<Map<String, dynamic>> checkIngredientConflicts(
+    String ingredientsText,
+  ) async {
+    final url = Uri.parse('$baseUrl/products/check-conflicts');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'ingredients_text': ingredientsText}),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Çakışma analizi başarısız oldu.');
+      }
+    } catch (e) {
+      throw Exception('Bağlantı hatası: $e');
+    }
+  }
+
+  // --- GÜVENLİ / TEHLİKELİ İÇERİK LİSTESİ (VIEW: v_user_safe_ingredients) ---
+  static Future<Map<String, dynamic>> getSafeIngredients(int userId) async {
+    final url = Uri.parse('$baseUrl/users/$userId/safe-ingredients');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('İçerik listesi yüklenemedi.');
+      }
+    } catch (e) {
+      throw Exception('Bağlantı hatası: $e');
     }
   }
 }

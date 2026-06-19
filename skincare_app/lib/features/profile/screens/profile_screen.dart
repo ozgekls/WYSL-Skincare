@@ -35,12 +35,11 @@ class ProfileScreenState extends State<ProfileScreen> {
     try {
       final products = await ApiService.getPastProducts(widget.userId!);
 
-      // Ürünleri isimlerine göre gruplama mantığı (Çift görünmeyi engeller)
       final Map<String, List<Map<String, dynamic>>> grouped = {};
 
       for (var p in products) {
         final type = p['routine_type'] ?? '';
-        if (type == 'analyzed') continue; // Analiz edilenleri profilden gizle
+        if (type == 'analyzed') continue;
 
         final name = p['product_name']?.toString().trim() ?? 'İsimsiz';
         final lowerName = name.toLowerCase();
@@ -51,7 +50,6 @@ class ProfileScreenState extends State<ProfileScreen> {
         grouped[lowerName]!.add(Map<String, dynamic>.from(p));
       }
 
-      // Gruplanmış listeyi tekil gösterim kartlarına dönüştür
       final List<Map<String, dynamic>> displayList = [];
       grouped.forEach((key, list) {
         final types = list.map((e) => e['routine_type'] as String).toSet();
@@ -73,7 +71,6 @@ class ProfileScreenState extends State<ProfileScreen> {
 
         final representative = Map<String, dynamic>.from(list.first);
         representative['display_type'] = displayType;
-        // Düzenleme/Silme işlemlerinde tüm varyasyonları yönetebilmek için orijinal listeyi saklıyoruz
         representative['original_records'] = list;
 
         displayList.add(representative);
@@ -480,7 +477,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     final allTypes =
         originalRecords?.map((e) => e['routine_type'] as String).toList() ?? [];
 
-    // Eğer ürün zaten anlaşamadı olarak işaretlenmemişse varsayılan anlaştı olsun
     bool isLiked = !allTypes.contains('disliked');
 
     showDialog(
@@ -598,30 +594,26 @@ class ProfileScreenState extends State<ProfileScreen> {
                   try {
                     if (originalRecords != null && originalRecords.isNotEmpty) {
                       if (isLiked) {
-                        // Kullanıcı "Anlaştı" dedi.
                         bool hasRoutine =
                             allTypes.contains('Sabah Rutini') ||
                             allTypes.contains('Akşam Rutini');
 
                         if (hasRoutine) {
-                          // Eğer ürün rutinlerdeyse, onu rutinden ÇIKARMA (ismini güncelle sadece)
                           for (var record in originalRecords) {
                             await ApiService.updateProduct(
                               widget.userId!,
                               record['id'] as int,
                               nameController.text,
-                              record['routine_type'], // Orijinal rutin tipini koruyoruz!
+                              record['routine_type'],
                             );
                           }
                         } else {
-                          // Rutinde değilse ve geçmişteyse hepsini 'liked' yap
                           await ApiService.updateProduct(
                             widget.userId!,
                             originalRecords.first['id'] as int,
                             nameController.text,
                             'liked',
                           );
-                          // Varsa diğer kopyaları temizle
                           for (int i = 1; i < originalRecords.length; i++) {
                             await ApiService.deleteProduct(
                               widget.userId!,
@@ -630,14 +622,12 @@ class ProfileScreenState extends State<ProfileScreen> {
                           }
                         }
                       } else {
-                        // Kullanıcı "Anlaşamadı" dedi. Rutinlerden düşmeli!
                         await ApiService.updateProduct(
                           widget.userId!,
                           originalRecords.first['id'] as int,
                           nameController.text,
                           'disliked',
                         );
-                        // Anlaşamadığı bir ürünün diğer kopyalarını (rutinlerini) siliyoruz
                         for (int i = 1; i < originalRecords.length; i++) {
                           await ApiService.deleteProduct(
                             widget.userId!,
@@ -646,7 +636,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                         }
                       }
                     } else {
-                      // Fallback: Beklenmeyen durum
                       await ApiService.updateProduct(
                         widget.userId!,
                         product['id'] as int,
@@ -677,7 +666,6 @@ class ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Rutin tipini Türkçe etikete çevir
   String _routineLabel(String? routineType) {
     switch (routineType) {
       case 'liked':
@@ -689,7 +677,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       case 'Akşam Rutini':
         return '🌙 Akşam';
       case 'Sabah & Akşam':
-        return '☀️ Sabah & Akşam'; // YENİ: Ortak gösterim
+        return '☀️ Sabah & Akşam';
       case 'analyzed':
         return '🔬 Analiz';
       default:
@@ -702,7 +690,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       case 'liked':
       case 'Sabah Rutini':
       case 'Akşam Rutini':
-      case 'Sabah & Akşam': // YENİ: Ortak gösterim rengi
+      case 'Sabah & Akşam':
         return Colors.green;
       case 'disliked':
         return Colors.red;
@@ -738,7 +726,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- PROFİL BAŞLIĞI ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -834,7 +821,6 @@ class ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 40),
 
-                    // --- GEÇMİŞ ÜRÜNLERİM ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -879,7 +865,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                               itemCount: _pastProducts.length,
                               itemBuilder: (context, index) {
                                 final product = _pastProducts[index];
-                                // Ekrandaki tip için artık `display_type` kullanıyoruz
                                 final routineType =
                                     product['display_type'] ??
                                     product['routine_type'] ??
@@ -982,7 +967,6 @@ class ProfileScreenState extends State<ProfileScreen> {
                                                             Map<String, dynamic>
                                                           >?;
                                                   try {
-                                                    // Gruba ait TİP ayrımı gözetmeksizin hepsini sil (Çünkü menüden siliyor)
                                                     if (originalRecords !=
                                                             null &&
                                                         originalRecords
@@ -1130,7 +1114,6 @@ class ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 40),
 
-                    // --- İÇERİK ANALİZ RAPORU ---
                     const Text(
                       "İÇERİK ANALİZ RAPORU",
                       style: TextStyle(
@@ -1170,12 +1153,410 @@ class ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+
+                    if (widget.userId != null) ...[
+                      const SizedBox(height: 24),
+                      UserIngredientsSection(userId: widget.userId!),
+                      const SizedBox(height: 16),
+                      const ConflictCheckSection(),
+                    ],
                   ],
                 ),
               );
             }
             return const Center(child: Text("Veri bulunamadı."));
           },
+        ),
+      ),
+    );
+  }
+}
+
+class UserIngredientsSection extends StatefulWidget {
+  final int userId;
+  const UserIngredientsSection({super.key, required this.userId});
+
+  @override
+  State<UserIngredientsSection> createState() => _UserIngredientsSectionState();
+}
+
+class _UserIngredientsSectionState extends State<UserIngredientsSection> {
+  bool _isLoading = true;
+  List<dynamic> _unsafeIngredients = [];
+  List<dynamic> _flaggedIngredients = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadIngredients();
+  }
+
+  void _loadIngredients() async {
+    try {
+      final data = await ApiService.getSafeIngredients(widget.userId);
+      if (mounted) {
+        setState(() {
+          _unsafeIngredients = data['unsafe_ingredients'] ?? [];
+          _flaggedIngredients = data['flagged_ingredients'] ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(12.0),
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.teal,
+          ),
+        ),
+      );
+    }
+
+    if (_unsafeIngredients.isEmpty && _flaggedIngredients.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: const Icon(Icons.security_rounded, color: Colors.teal),
+        title: const Text(
+          'Kişisel İçerik Profilim',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        subtitle: Text(
+          '${_unsafeIngredients.length} tehlikeli, ${_flaggedIngredients.length} şüpheli madde',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        children: [
+          if (_unsafeIngredients.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '❌ Kesinlikle Kaçınmanız Gerekenler',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.redAccent,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 14, right: 14, bottom: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _unsafeIngredients.map<Widget>((item) {
+                    return Chip(
+                      backgroundColor: Colors.red[50],
+                      side: BorderSide.none,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
+                      label: Text(
+                        item['ingredient_name'] ?? '',
+                        style: TextStyle(
+                          color: Colors.red[900],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+          if (_flaggedIngredients.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '⚠️ Dikkat Etmeniz Gerekenler (Sınırda)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _flaggedIngredients.map<Widget>((item) {
+                    return Chip(
+                      backgroundColor: Colors.orange[50],
+                      side: BorderSide.none,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 0,
+                      ),
+                      label: Text(
+                        item['ingredient_name'] ?? '',
+                        style: TextStyle(
+                          color: Colors.orange[900],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class ConflictCheckSection extends StatefulWidget {
+  const ConflictCheckSection({super.key});
+
+  @override
+  State<ConflictCheckSection> createState() => _ConflictCheckSectionState();
+}
+
+class _ConflictCheckSectionState extends State<ConflictCheckSection> {
+  final TextEditingController _textController = TextEditingController();
+  bool _isLoading = false;
+  List<dynamic> _conflicts = [];
+  bool _hasSearched = false;
+
+  void _analyzeConflicts() async {
+    if (_textController.text.trim().isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isLoading = true;
+      _hasSearched = true;
+    });
+
+    try {
+      final result = await ApiService.checkIngredientConflicts(
+        _textController.text,
+      );
+      setState(() {
+        _conflicts = result['conflicts'] ?? [];
+      });
+    } catch (e) {
+      debugPrint('Çakışma analiz hatası: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+      ),
+
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.science_outlined, color: Colors.teal),
+                SizedBox(width: 8),
+                Text(
+                  'Hızlı İçerik Çakışma Testi',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Aynı rutinde birleştirmek istediğiniz aktif içerikleri aralarına virgül koyarak yazın.',
+              style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _textController,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Örn: Retinol, Vitamin C, Niacinamide',
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.withOpacity(0.03),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.teal),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _analyzeConflicts,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Test Et',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            ),
+            if (_hasSearched && !_isLoading) ...[
+              const SizedBox(height: 14),
+              if (_conflicts.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Harika! Bu içerikler aynı rutinde güvenle kullanılabilir.',
+                          style: TextStyle(
+                            color: Colors.green[800],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Column(
+                  children: _conflicts.map<Widget>((conflict) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red[100]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.block_outlined,
+                                color: Colors.redAccent,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${conflict['ingredient_a']} ❌ ${conflict['ingredient_b']}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red[900],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 22),
+                            child: Text(
+                              conflict['description'] ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.red[800],
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ],
         ),
       ),
     );

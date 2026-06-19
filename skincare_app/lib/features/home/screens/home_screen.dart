@@ -34,7 +34,9 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoadingRoutine = true);
     try {
       final data = await ApiService.getUserRoutine(widget.userId!);
-      setState(() => _routineProducts = data);
+      setState(() {
+        _routineProducts = data;
+      });
     } catch (e) {
       debugPrint('Rutin yüklenemedi: $e');
     } finally {
@@ -838,7 +840,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Opacity(
                               opacity: 0.09, // Transparanlık ayarı
                               child: const Text(
-                                '🫧',
+                                '',
                                 style: TextStyle(
                                   fontSize: 100, // emoji boyutunu büyüttük
                                 ),
@@ -908,9 +910,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                           _showEditRoutineProduct(product);
                                         } else if (value == 'delete') {
                                           try {
-                                            await ApiService.deleteProduct(
+                                            await ApiService.updateProduct(
                                               widget.userId!,
                                               product['id'] as int,
+                                              product['product_name'] ??
+                                                  'İsimsiz', // Mevcut adını koruyoruz
+                                              'liked', // Rutin etiketini ezerek aktif rutinden düşürüyoruz
                                             );
                                             await _loadRoutine();
                                           } catch (e) {
